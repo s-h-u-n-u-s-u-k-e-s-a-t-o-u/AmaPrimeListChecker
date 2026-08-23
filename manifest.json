@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Ama Prime List Checker",
+  "version": "1.0.0",
+  "description": "Amazon Prime Video のWatch listから未視聴の作品だけを残してチェックします。",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": [
+    "https://www.amazon.co.jp/*",
+    "https://www.amazon.com/*",
+    "https://www.primevideo.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Ama Prime List Checker",
+    "default_popup": "popup.html"
+  }
+}
