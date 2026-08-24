@@ -1,4 +1,4 @@
-const WATCHLIST_URL = 'https://www.amazon.co.jp/gp/video/mystuff';
+const WATCHLIST_URL = 'https://www.amazon.co.jp/gp/video/mystuff/watchlist/tv?ref_=atv_hm_mys_c_4i2srv_1_mys_lnd_wl_tv';
 const WATCHLIST_URL_VARIANTS = [
   'https://www.amazon.co.jp/gp/video/mystuff',
   'https://www.amazon.co.jp/gp/video/mystuff/ref=atv_nb_mystuff',
