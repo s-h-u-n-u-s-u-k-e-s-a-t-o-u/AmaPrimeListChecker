@@ -1,36 +1,38 @@
 const WATCHLIST_URL = 'https://www.amazon.co.jp/gp/video/mystuff/watchlist/tv?ref_=atv_hm_mys_c_4i2srv_1_mys_lnd_wl_tv';
-const WATCHLIST_URL_VARIANTS = [
-  'https://www.amazon.co.jp/gp/video/mystuff',
-  'https://www.amazon.co.jp/gp/video/mystuff/ref=atv_nb_mystuff',
-  'https://www.primevideo.com/gp/video/mystuff',
-  'https://www.primevideo.com/mystuff'
-];
+const AMAZON_LOGIN_URL = 'https://www.amazon.co.jp/ap/signin';
 
 function isWatchListUrl(url) {
   if (typeof url !== 'string') {
     return false;
   }
 
-  const normalizedUrl = url.replace(/\?.*$/, '').replace(/\/?$/, '');
-  return WATCHLIST_URL_VARIANTS.some((candidate) => {
-    const normalizedCandidate = candidate.replace(/\?.*$/, '').replace(/\/?$/, '');
-    return normalizedUrl === normalizedCandidate || normalizedUrl.startsWith(normalizedCandidate + '/');
-  }) || /\/gp\/video\/mystuff|\/mystuff/i.test(url);
+  const normalized = url.toLowerCase();
+  return normalized.includes('/gp/video/mystuff/watchlist') || normalized.includes('/mystuff/watchlist') || normalized.includes('/gp/video/mystuff');
 }
 
-function isPrimeVideoDetailUrl(url) {
+function isLoginUrl(url) {
   if (typeof url !== 'string') {
     return false;
   }
 
-  return /\/gp\/video\/(?:detail|watch)|\/detail(?:\/|\?|$)|\/watch(?:\/|\?|$)|primevideo\.com\/detail/i.test(url);
+  const normalized = url.toLowerCase();
+  return normalized.includes('/ap/signin') || normalized.includes('/signin') || normalized.includes('/login') || normalized.includes('amazon.co.jp/ap/cvf/reader');
+}
+
+function isPrimeVideoUrl(url) {
+  if (typeof url !== 'string') {
+    return false;
+  }
+
+  const normalized = url.toLowerCase();
+  return normalized.includes('/gp/video/detail') || normalized.includes('/detail') || normalized.includes('/watch') || normalized.includes('primevideo.com') || normalized.includes('amazon.co.jp/gp/video');
 }
 
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: WATCHLIST_URL, active: true });
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message?.type === 'start-check') {
     chrome.tabs.create({ url: WATCHLIST_URL, active: true });
     return;
@@ -48,12 +50,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.keep === false) {
       chrome.tabs.remove(sender.tab.id);
     }
-    return;
   }
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab.url) {
+    return;
+  }
+
+  if (isLoginUrl(tab.url)) {
     return;
   }
 
@@ -65,7 +70,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     return;
   }
 
-  if (isPrimeVideoDetailUrl(tab.url)) {
+  if (isPrimeVideoUrl(tab.url)) {
     chrome.scripting.executeScript({
       target: { tabId, allFrames: false },
       files: ['detail.js']
