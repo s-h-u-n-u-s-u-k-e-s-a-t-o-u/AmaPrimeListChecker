@@ -46,11 +46,13 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return;
   }
 
+// とりあえず開きっぱなしにする
   if (message?.type === 'video-check-result' && sender.tab?.id) {
     if (message.keep === false) {
       chrome.tabs.remove(sender.tab.id);
     }
   }
+
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

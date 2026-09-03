@@ -1,6 +1,8 @@
 (() => {
   const pageUrl = new URL(window.location.href);
   const pathname = `${pageUrl.pathname}${pageUrl.search}`;
+
+  // prime videoの詳細ページか判定
   const isPrimeDetailPage = /(?:amazon\.(?:co\.jp|com)|primevideo\.com)/i.test(pageUrl.hostname)
     && /\/(?:gp\/video\/)?(?:detail|watch)(?:\/|\?|$)|\/detail(?:\/|\?|$)|\/watch(?:\/|\?|$)/i.test(pathname);
 
@@ -8,15 +10,15 @@
     return;
   }
 
-  function getWatchedStateFromDom() {
-    const direct = document.querySelector('[data-is-watched]');
-    if (direct) {
-      const value = String(direct.getAttribute('data-is-watched')).toLowerCase();
-      if (value === 'true' || value === 'false') {
-        return value === 'true';
-      }
+  // 視聴状態を判定する関数（戻り値: true=視聴済, false=未見, null=要素がまだ見つからない）
+  function checkWatchedState() {
+    // 1. 直接 data-is-watched があるかチェック
+    const directElements = Array.from(document.querySelectorAll('[data-is-watched]'));
+    if (directElements.length > 0) {
+      return directElements.some((el) => String(el.getAttribute('data-is-watched')).toLowerCase() === 'true');
     }
 
+    // 2. クラス名やテストID、aria-labelから判定
     const watchedCandidate = document.querySelector('[class*="is-watched"], [class*="watched"], [data-testid*="watched"], [aria-label*="watched"], [aria-label*="Watched"]');
     if (watchedCandidate) {
       const className = watchedCandidate.className || '';
@@ -29,86 +31,50 @@
       }
     }
 
+    // 判定要素自体がまだ見つからない場合は null を返す
     return null;
   }
 
-  function collectText() {
-    const bodyText = (document.body ? (document.body.innerText || document.body.textContent || '') : '')
-      .replace(/\s+/g, ' ')
-      .trim();
+  let observer = null;
+  let timeoutId = null;
 
-    const buttonText = [...document.querySelectorAll('button, a, [role="button"], [data-testid]')]
-      .map((element) => (element.textContent || element.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
-      .filter(Boolean)
-      .join(' ');
+  function sendResultAndCleanup(isWatched) {
+    if (observer) observer.disconnect();
+    if (timeoutId) clearTimeout(timeoutId);
 
-    return `${document.title || ''} ${bodyText} ${buttonText}`.replace(/\s+/g, ' ').trim();
-  }
-
-  function hasEntitlementMarker(text) {
-    return /(dアニメストア|アニメタイムズ|entitlement|追加課金|別途課金|有料チャンネル|premium channel|subscription required|channel subscription|premium)/i.test(text)
-      || !!document.querySelector('.entitlement-icon, [class*="entitlement"], [data-testid*="entitlement"], [aria-label*="entitlement"], [alt*="entitlement"], [title*="entitlement"]');
-  }
-
-  function hasWatchedMarker(text) {
-    const watchedPatterns = [
-      /視聴済/i,
-      /視聴済み/i,
-      /視聴履歴/i,
-      /再生済/i,
-      /再生済み/i,
-      /完了/i,
-      /終了/i,
-      /再開/i,
-      /続きから/i,
-      /resume watching/i,
-      /continue watching/i,
-      /watch again/i,
-      /rewatch/i,
-      /already watched/i,
-      /watch history/i,
-      /watched/i,
-      /completed/i
-    ];
-
-    return watchedPatterns.some((pattern) => pattern.test(text));
-  }
-
-  function shouldKeep(text, watchedState) {
-    if (watchedState !== null) {
-      return !watchedState;
-    }
-
-    if (hasEntitlementMarker(text)) {
-      return true;
-    }
-
-    const playPatterns = [
-      /再生/i,
-      /開始/i,
-      /見る/i,
-      /watch now/i,
-      /play now/i,
-      /play episode/i,
-      /start watching/i,
-      /watch video/i,
-      /watch free/i,
-      /無料で見る/i,
-      /今すぐ見る/i
-    ];
-
-    const hasPlayAction = playPatterns.some((pattern) => pattern.test(text));
-    const hasWatchAction = /再生|視聴|プレイ|watch|start|見る|continue|resume/i.test(text);
-
-    return !hasWatchedMarker(text) && (!hasWatchAction || hasPlayAction);
-  }
-
-  setTimeout(() => {
-    const text = collectText();
-    const watchedState = getWatchedStateFromDom();
+    // 視聴済(true)なら keep: false (タブを閉じる)
+    // 未視聴(false)なら keep: true (タブを残す)
     chrome.runtime.sendMessage({
       type: 'video-check-result',
-      keep: shouldKeep(text, watchedState)
+      keep: !isWatched
     });
-  }, 800);
+  }
+
+  function judge() {
+    const watchedState = checkWatchedState();
+    
+    if (watchedState !== null) {
+      // 判定（視聴済か未視聴か）が確定したら結果を送信
+      sendResultAndCleanup(watchedState);
+    }
+  }
+
+  // 1. DOMの変更を監視して、要素が登場した瞬間に判定する
+  observer = new MutationObserver(() => {
+    judge();
+  });
+  observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true
+  });
+
+  // 2. ページ読み込み時にすでに要素があるかもしれないので一回実行
+  judge();
+
+  // 3. タイムアウト（5秒経っても要素が出ない場合は未視聴としてタブを残す安全策）
+  timeoutId = setTimeout(() => {
+    sendResultAndCleanup(false); 
+  }, 5000);
+
 })();
