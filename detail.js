@@ -12,23 +12,10 @@
 
   // 視聴状態を判定する関数（戻り値: true=視聴済, false=未見, null=要素がまだ見つからない）
   function checkWatchedState() {
-    // 1. 直接 data-is-watched があるかチェック
+    // 1. 直接 data-is-watched があるかチェック。1件でも未視聴ならfalse
     const directElements = Array.from(document.querySelectorAll('[data-is-watched]'));
     if (directElements.length > 0) {
-      return directElements.some((el) => String(el.getAttribute('data-is-watched')).toLowerCase() === 'true');
-    }
-
-    // 2. クラス名やテストID、aria-labelから判定
-    const watchedCandidate = document.querySelector('[class*="is-watched"], [class*="watched"], [data-testid*="watched"], [aria-label*="watched"], [aria-label*="Watched"]');
-    if (watchedCandidate) {
-      const className = watchedCandidate.className || '';
-      const value = String(watchedCandidate.getAttribute('data-is-watched') || '').toLowerCase();
-      if (value === 'true' || value === 'false') {
-        return value === 'true';
-      }
-      if (className && /(is-watched|watched|completed)/i.test(className)) {
-        return true;
-      }
+      return !directElements.some((el) => String(el.getAttribute('data-is-watched')).toLowerCase() === 'false');
     }
 
     // 判定要素自体がまだ見つからない場合は null を返す
