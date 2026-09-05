@@ -14,6 +14,17 @@
   function checkWatchedState() {
     // 1. 直接 data-is-watched があるかチェック。1件でも未視聴ならfalse
     const directElements = Array.from(document.querySelectorAll('[data-is-watched]'));
+
+    // 2. 配列の要素内でclass="fbl-icon"を持つ要素を、配列から削除する
+    const fblIconElements = Array.from(document.querySelectorAll('.fbl-icon'));
+    fblIconElements.forEach((el) => {
+      const index = directElements.indexOf(el);
+      if (index !== -1) {
+        directElements.splice(index, 1);
+      }
+    });
+
+    
     if (directElements.length > 0) {
       return !directElements.some((el) => String(el.getAttribute('data-is-watched')).toLowerCase() === 'false');
     }
