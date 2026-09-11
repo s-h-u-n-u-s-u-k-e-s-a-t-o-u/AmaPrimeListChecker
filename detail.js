@@ -13,18 +13,18 @@
   // 視聴状態を判定する関数（戻り値: true=視聴済, false=未見, null=要素がまだ見つからない）
   function checkWatchedState() {
     // 1. 直接 data-is-watched があるかチェック。1件でも未視聴ならfalse
-    const directElements = Array.from(document.querySelectorAll('[data-is-watched]'));
+    const allElements = Array.from(document.querySelectorAll('[data-is-watched]'));
 
-    // 2. 配列の要素内でclass="fbl-icon"を持つ要素を、配列から削除する
-    const fblIconElements = Array.from(document.querySelectorAll('.fbl-icon'));
-    fblIconElements.forEach((el) => {
-      const index = directElements.indexOf(el);
-      if (index !== -1) {
-        directElements.splice(index, 1);
-      }
+    // 2. 配列の要素内で、自身または子孫要素に class="fbl-icon" を持つものを除外する
+    const directElements = allElements.filter((el) => {
+      // el（data-is-watchedを持つ要素）の内側に .fbl-icon があるかチェック
+      const hasIconInside = el.querySelector('.fbl-icon') !== null;
+      
+      // 内側にアイコンがないもの（false）だけを配列に残す
+      return !hasIconInside;
     });
-
-    
+  
+    // アイコンを除外した結果、有効な要素が1つも残らなかった場合は、まだ要素が揃っていないとみなしてnullを返す
     if (directElements.length > 0) {
       return !directElements.some((el) => String(el.getAttribute('data-is-watched')).toLowerCase() === 'false');
     }
